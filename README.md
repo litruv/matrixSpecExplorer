@@ -94,7 +94,8 @@ For reliable scheduled refreshes, add an `MSP_GITHUB_TOKEN` repo secret using a 
 
 ```text
 index.html          App shell
-og.svg              Default Open Graph image
+og.svg              Default Open Graph image (SVG)
+social-preview.png  Open Graph / social card image (PNG, 1200×630)
 
 css/style.css       Styles
 

@@ -292,7 +292,7 @@ function generateSharePages(mscs, commentsByPr) {
   if (!bodyMatch) throw new Error('index.html is missing a <body>');
   const appBody = rewriteAssetPaths(bodyMatch[1]);
 
-  const ogImage = `${SITE_URL}/og.svg`;
+  const ogImage = `${SITE_URL}/social-preview.png`;
 
   for (const msc of mscs) {
     const dir = new URL(`./msc/${msc.number}/`, import.meta.url);
