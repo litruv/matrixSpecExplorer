@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      refresh_data:
+        description: Fetch fresh MSC data from GitHub API
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,9 +36,17 @@ jobs:
 
       - name: Build MSC data
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MSP_GITHUB_TOKEN: ${{ secrets.MSP_GITHUB_TOKEN }}
           SITE_URL: https://litruv.github.io/matrixSpecExplorer
-        run: node build-data.js
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.refresh_data }}" = "true" ]; then
+            if ! node build-data.js; then
+              echo "Full refresh failed — deploying with committed data"
+              node build-data.js --share-pages-only
+            fi
+          else
+            node build-data.js --share-pages-only
+          fi
 
       - uses: actions/upload-pages-artifact@v3
         with:

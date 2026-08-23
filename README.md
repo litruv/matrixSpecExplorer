@@ -30,8 +30,8 @@ The repo includes pre-built data in `js/msc-data.js` and `js/msc-comments.js`, s
 To regenerate MSC metadata and PR comments from GitHub:
 
 ```bash
-# Recommended — avoids API rate limits
-export GITHUB_TOKEN=ghp_...
+# Recommended — avoids API rate limits (5000 req/hr vs GITHUB_TOKEN's cross-repo limits)
+export MSP_GITHUB_TOKEN=ghp_...
 # or: gh auth login
 
 # Optional — parses dependencies from proposal markdown
@@ -39,6 +39,14 @@ git clone --depth 1 https://github.com/matrix-org/matrix-spec-proposals.git /tmp
 
 node build-data.js
 ```
+
+Regenerate only the `/msc/N/` share pages (no API calls) after app changes:
+
+```bash
+node build-data.js --share-pages-only
+```
+
+**CI behaviour:** pushes to `main` run `--share-pages-only` and deploy committed `js/msc-data.js` / `js/msc-comments.js`. The daily schedule (and manual "refresh data" dispatch) run a full API refresh — add a repo secret `MSP_GITHUB_TOKEN` (fine-grained PAT with public repo read access) so scheduled builds don't hit GitHub Actions' low cross-repo rate limits.
 
 This overwrites:
 

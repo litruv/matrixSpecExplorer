@@ -47,6 +47,7 @@ function sleep(ms) {
 }
 
 function getGhToken() {
+  if (process.env.MSP_GITHUB_TOKEN) return process.env.MSP_GITHUB_TOKEN;
   try {
     return execSync('gh auth token', { encoding: 'utf8' }).trim();
   } catch {
@@ -54,11 +55,43 @@ function getGhToken() {
   }
 }
 
+let cachedGhHeaders = null;
+
 function ghHeaders() {
-  const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'matrixSpecExplorer' };
-  const token = getGhToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
+  if (!cachedGhHeaders) {
+    const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'matrixSpecExplorer' };
+    const token = getGhToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    cachedGhHeaders = headers;
+  }
+  return cachedGhHeaders;
+}
+
+async function githubFetch(url, options = {}, retries = 3) {
+  const res = await fetch(url, { ...options, headers: { ...ghHeaders(), ...options.headers } });
+
+  if ((res.status === 403 || res.status === 429) && retries > 0) {
+    const body = await res.text();
+    const isRateLimit = /rate limit/i.test(body);
+    if (isRateLimit) {
+      const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
+      const reset = parseInt(res.headers.get('x-ratelimit-reset') || '0', 10);
+      const waitMs = retryAfter > 0
+        ? retryAfter * 1000
+        : Math.max(0, reset * 1000 - Date.now()) + 1000;
+      const capped = Math.min(waitMs, 5 * 60 * 1000);
+      console.warn(`Rate limited (${res.status}), waiting ${Math.ceil(capped / 1000)}s…`);
+      await sleep(capped);
+      return githubFetch(url, options, retries - 1);
+    }
+    throw new Error(`GitHub API ${res.status}: ${body}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+  }
+
+  return res;
 }
 
 function parseTitle(raw) {
@@ -140,8 +173,7 @@ async function fetchIssuesForState(state) {
   let url = `https://api.github.com/repos/matrix-org/matrix-spec-proposals/issues?labels=proposal&state=${state}&per_page=100&sort=updated&direction=desc`;
 
   while (url) {
-    const res = await fetch(url, { headers: ghHeaders() });
-    if (!res.ok) throw new Error(`GitHub issues API ${res.status}: ${await res.text()}`);
+    const res = await githubFetch(url);
     const batch = await res.json();
     all.push(...batch);
     console.log(`  ${state}: ${all.length}`);
@@ -172,8 +204,7 @@ async function fetchDraftPullNumbers() {
   let url = 'https://api.github.com/repos/matrix-org/matrix-spec-proposals/pulls?state=open&per_page=100';
 
   while (url) {
-    const res = await fetch(url, { headers: ghHeaders() });
-    if (!res.ok) throw new Error(`GitHub pulls API ${res.status}: ${await res.text()}`);
+    const res = await githubFetch(url);
     const batch = await res.json();
     for (const pr of batch) {
       if (pr.draft) drafts.add(pr.number);
@@ -224,6 +255,26 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function loadExistingMscData() {
+  const src = readFileSync(new URL('./js/msc-data.js', import.meta.url), 'utf8');
+  const json = src.replace(/^[\s\S]*?const MSC_INDEX = /, '').replace(/;\s*$/, '');
+  return JSON.parse(json);
+}
+
+function loadExistingComments() {
+  const src = readFileSync(new URL('./js/msc-comments.js', import.meta.url), 'utf8');
+  const json = src.replace(/^[\s\S]*?const MSC_COMMENTS = /, '').replace(/;\s*$/, '');
+  return JSON.parse(json);
+}
+
+function sharePagesOnly() {
+  console.log('Regenerating share pages from committed data files…');
+  const payload = loadExistingMscData();
+  const commentsByPr = loadExistingComments();
+  generateSharePages(payload.mscs, commentsByPr);
+  console.log(`Done (${payload.mscs.length} MSCs, data from ${payload.fetchedAt})`);
 }
 
 function rewriteAssetPaths(html) {
@@ -291,8 +342,32 @@ ${appBody}
 }
 
 async function main() {
+  if (process.argv.includes('--share-pages-only')) {
+    sharePagesOnly();
+    return;
+  }
+
   const token = getGhToken();
+  if (process.env.GITHUB_TOKEN && !process.env.MSP_GITHUB_TOKEN && token === process.env.GITHUB_TOKEN) {
+    console.warn('Warning: GITHUB_TOKEN has low cross-repo rate limits. Set MSP_GITHUB_TOKEN for data refresh.');
+  }
   console.log(token ? 'Using authenticated GitHub API' : 'Using unauthenticated GitHub API (rate limits apply)');
+
+  const existing = (() => {
+    try {
+      return loadExistingMscData();
+    } catch {
+      return null;
+    }
+  })();
+  const existingComments = (() => {
+    try {
+      return loadExistingComments();
+    } catch {
+      return {};
+    }
+  })();
+  const lastFetched = existing?.fetchedAt ? new Date(existing.fetchedAt) : null;
 
   console.log('Fetching MSC issues from GitHub…');
   const allItems = await fetchAllIssues();
@@ -340,7 +415,7 @@ async function main() {
   mscs.sort((a, b) => b.number - a.number);
 
   console.log('Fetching PR discussion comments…');
-  const commentsByPr = await fetchAllComments(mscs);
+  const commentsByPr = await fetchAllComments(mscs, existingComments, lastFetched);
 
   const payload = {
     fetchedAt: new Date().toISOString(),
@@ -364,8 +439,7 @@ async function fetchIssueComments(issueNumber) {
   let url = `https://api.github.com/repos/matrix-org/matrix-spec-proposals/issues/${issueNumber}/comments?per_page=100`;
 
   while (url) {
-    const res = await fetch(url, { headers: ghHeaders() });
-    if (!res.ok) return comments;
+    const res = await githubFetch(url);
     const batch = await res.json();
     comments.push(...batch.map((c) => ({
       author: c.user.login,
@@ -385,23 +459,35 @@ async function fetchIssueComments(issueNumber) {
   return comments;
 }
 
-async function fetchAllComments(mscs) {
-  const commentsByPr = {};
-  const batchSize = 20;
+async function fetchAllComments(mscs, existingComments = {}, lastFetched = null) {
+  const commentsByPr = { ...existingComments };
+  const needsFetch = lastFetched
+    ? mscs.filter((msc) => {
+      if (!existingComments[String(msc.pr)]) return true;
+      return new Date(`${msc.updatedAt}T00:00:00Z`) >= lastFetched;
+    })
+    : mscs;
 
-  for (let i = 0; i < mscs.length; i += batchSize) {
-    const batch = mscs.slice(i, i + batchSize);
-    const results = await Promise.all(batch.map(async (msc) => {
-      const comments = await fetchIssueComments(msc.pr);
-      return { pr: msc.pr, comments };
-    }));
+  if (lastFetched && needsFetch.length < mscs.length) {
+    console.log(`  incremental: fetching comments for ${needsFetch.length}/${mscs.length} MSCs`);
+  }
 
-    for (const { pr, comments } of results) {
-      if (comments.length) commentsByPr[pr] = comments;
+  const batchSize = 5;
+
+  for (let i = 0; i < needsFetch.length; i += batchSize) {
+    const batch = needsFetch.slice(i, i + batchSize);
+    for (const msc of batch) {
+      try {
+        const comments = await fetchIssueComments(msc.pr);
+        if (comments.length) commentsByPr[msc.pr] = comments;
+        else delete commentsByPr[msc.pr];
+      } catch (err) {
+        console.warn(`  skipped comments for PR #${msc.pr}: ${err.message}`);
+      }
     }
 
-    console.log(`  comments: ${Math.min(i + batchSize, mscs.length)}/${mscs.length}`);
-    if (i + batchSize < mscs.length) await sleep(DELAY_MS);
+    console.log(`  comments: ${Math.min(i + batchSize, needsFetch.length)}/${needsFetch.length}`);
+    if (i + batchSize < needsFetch.length) await sleep(DELAY_MS);
   }
 
   return commentsByPr;
