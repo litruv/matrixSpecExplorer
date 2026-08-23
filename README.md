@@ -73,6 +73,6 @@ build-data.js       Fetches data from GitHub API
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**Application code:** MIT — see [LICENSE](LICENSE).
 
-MSC metadata and PR comments in `js/msc-data.js` and `js/msc-comments.js` are aggregated from public [matrix-spec-proposals](https://github.com/matrix-org/matrix-spec-proposals) sources on GitHub.
+**Bundled data:** MSC metadata and PR comments in `js/msc-data.js` and `js/msc-comments.js` are aggregated from public [matrix-spec-proposals](https://github.com/matrix-org/matrix-spec-proposals) on GitHub. MSC proposals are licensed under [Apache 2.0](https://github.com/matrix-org/matrix-spec-proposals/blob/main/LICENSE). PR comment text remains © its respective authors. See [NOTICE](NOTICE) for attribution details.

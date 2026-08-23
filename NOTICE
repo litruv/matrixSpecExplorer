@@ -1,0 +1,19 @@
+Matrix Spec Explorer
+Copyright (c) 2026 litruv
+
+This application is licensed under the MIT License. See LICENSE.
+
+---
+
+Third-party data
+
+MSC metadata in js/msc-data.js is aggregated from matrix-spec-proposals:
+  https://github.com/matrix-org/matrix-spec-proposals
+  Licensed under the Apache License, Version 2.0
+
+PR discussion text in js/msc-comments.js is aggregated from public GitHub
+comments on matrix-spec-proposals pull requests. Comment text remains the
+property of its respective authors.
+
+Proposal markdown is fetched at runtime from GitHub and is not redistributed
+in this repository.
