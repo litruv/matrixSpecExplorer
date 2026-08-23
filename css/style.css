@@ -11,6 +11,7 @@
   --warn: #d29922;
   --danger: #f85149;
   --purple: #a371f7;
+  --favourite: #e3b341;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
   --scrollbar-size: 6px;
@@ -561,11 +562,78 @@ input:focus, select:focus {
   padding-left: calc(1rem - 3px);
 }
 
+.filter-row-favourites .filter-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.filter-row-favourites.active .filter-row-label .icon {
+  color: var(--favourite);
+  fill: var(--favourite);
+}
+
 .msc-row-top {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
   margin-bottom: 0.2rem;
+}
+
+.msc-favourite-btn,
+.favorite-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.msc-favourite-btn {
+  margin-left: auto;
+  align-self: center;
+  opacity: 0;
+}
+
+.msc-item:hover .msc-favourite-btn,
+.msc-item:focus-within .msc-favourite-btn,
+.msc-favourite-btn.is-favourite,
+.msc-favourite-btn:focus-visible {
+  opacity: 1;
+}
+
+.msc-favourite-btn:hover,
+.favorite-btn:hover {
+  background: var(--surface2);
+  color: var(--favourite);
+}
+
+.msc-favourite-btn.is-favourite,
+.favorite-btn.is-favourite {
+  color: var(--favourite);
+}
+
+.msc-favourite-btn.is-favourite .icon,
+.favorite-btn.is-favourite .icon {
+  fill: var(--favourite);
+}
+
+.favorite-btn .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.msc-favourite-btn .icon {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .msc-num {

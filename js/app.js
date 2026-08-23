@@ -24,7 +24,10 @@ const state = {
   selected: null,
   suggestionIndex: 0,
   suggestions: [],
+  favoritesOnly: false,
 };
+
+const FAVORITES_KEY = 'matrixSpecExplorer.favorites';
 
 const SORT_OPTIONS = [
   { value: 'number-desc', label: 'Newest first' },
@@ -53,9 +56,73 @@ for (const msc of MSC_INDEX.mscs) {
   byNumber.set(msc.number, msc);
 }
 
+const favorites = loadFavorites();
+
 function getCommentCount(msc) {
   if (typeof MSC_COMMENTS === 'undefined') return 0;
   return MSC_COMMENTS[String(msc.pr)]?.length ?? 0;
+}
+
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (!raw) return new Set();
+    const nums = JSON.parse(raw);
+    if (!Array.isArray(nums)) return new Set();
+    return new Set(nums.filter((n) => typeof n === 'number' && byNumber.has(n)));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveFavorites() {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites].sort((a, b) => b - a)));
+}
+
+function isFavorite(num) {
+  return favorites.has(num);
+}
+
+function toggleFavorite(num) {
+  if (!byNumber.has(num)) return;
+  if (favorites.has(num)) favorites.delete(num);
+  else favorites.add(num);
+  saveFavorites();
+  updateFavoritesFilterUI();
+  syncFavoriteButtons(num);
+  render();
+}
+
+function favoriteButtonHtml(num, className = 'copy-btn favorite-btn') {
+  const active = isFavorite(num);
+  return `<button type="button" class="${className}${active ? ' is-favourite' : ''}" data-favorite="${num}" aria-label="${active ? 'Remove from favourites' : 'Add to favourites'}">${icon('star', 'icon')}</button>`;
+}
+
+function updateFavoritesFilterUI() {
+  const countEl = document.getElementById('favorites-count');
+  if (countEl) countEl.textContent = String(favorites.size);
+  const filterBtn = document.getElementById('favorites-filter');
+  if (filterBtn) filterBtn.classList.toggle('active', state.favoritesOnly);
+}
+
+function syncFavoriteButtons(num) {
+  const active = isFavorite(num);
+  document.querySelectorAll(`[data-favorite="${num}"]`).forEach((btn) => {
+    btn.classList.toggle('is-favourite', active);
+    btn.setAttribute('aria-label', active ? 'Remove from favourites' : 'Add to favourites');
+  });
+}
+
+function bindFavoriteButtons(root) {
+  root.querySelectorAll('[data-favorite]').forEach((btn) => {
+    if (btn.dataset.favoriteBound) return;
+    btn.dataset.favoriteBound = '1';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      toggleFavorite(parseInt(btn.dataset.favorite, 10));
+    });
+  });
 }
 
 function init() {
@@ -77,6 +144,13 @@ function init() {
   initSortDropdown();
 
   document.getElementById('clear-filters').addEventListener('click', clearFilters);
+
+  document.getElementById('favorites-filter').addEventListener('click', () => {
+    state.favoritesOnly = !state.favoritesOnly;
+    updateFavoritesFilterUI();
+    render();
+  });
+  updateFavoritesFilterUI();
 
   window.addEventListener('popstate', syncFromLocation);
   window.addEventListener('hashchange', syncFromLocation);
@@ -675,8 +749,10 @@ function clearFilters() {
   state.statuses.clear();
   state.kinds.clear();
   state.areas.clear();
+  state.favoritesOnly = false;
   document.getElementById('search').value = '';
   document.querySelectorAll('.chip.active, .filter-row.active').forEach((el) => el.classList.remove('active'));
+  updateFavoritesFilterUI();
   hideSearchOverlay();
   renderSearchOverlay();
   render();
@@ -686,6 +762,7 @@ function filterMscs() {
   const { filters, freeText } = parseSearchQuery(state.search);
 
   return MSC_INDEX.mscs.filter((msc) => {
+    if (state.favoritesOnly && !favorites.has(msc.number)) return false;
     if (state.statuses.size && !state.statuses.has(msc.status)) return false;
     if (state.kinds.size && !msc.kind.some((k) => state.kinds.has(k))) return false;
     if (state.areas.size && !msc.area.some((a) => state.areas.has(a))) return false;
@@ -743,6 +820,7 @@ function render() {
       <div class="msc-row-top">
         <span class="msc-num">MSC${msc.number}</span>
         <span class="msc-title">${esc(msc.wip ? '[WIP] ' : '')}${esc(msc.title)}</span>
+        ${favoriteButtonHtml(msc.number, 'msc-favourite-btn')}
       </div>
       <div class="msc-meta">
         ${statusTagHtml(msc.status)}
@@ -755,6 +833,7 @@ function render() {
     list.appendChild(li);
   }
 
+  bindFavoriteButtons(list);
   refreshIcons();
 }
 
@@ -921,6 +1000,7 @@ function renderDetail(msc) {
   const docUrl = getExternalDocUrl(msc);
 
   document.getElementById('detail-actions').innerHTML = `
+    ${favoriteButtonHtml(msc.number)}
     <button type="button" class="copy-btn share-btn" data-share-url="${esc(mscShareUrl(msc.number))}" aria-label="Copy share link">${icon('share-2', 'icon')}</button>
     <a href="${esc(msc.url)}" class="detail-ext-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub PR #${msc.pr}">${githubIcon('icon')}</a>
     ${docUrl ? `<a href="${esc(docUrl)}" class="detail-ext-link" target="_blank" rel="noopener noreferrer" aria-label="Proposal on GitHub">${icon('external-link', 'icon')}</a>` : ''}`;
@@ -980,6 +1060,7 @@ function renderDetail(msc) {
 
   bindMscLinks(el);
   bindCopyButtons(el);
+  bindFavoriteButtons(document.getElementById('detail-actions'));
   loadMarkdown(msc);
   renderComments(msc);
   refreshIcons();
