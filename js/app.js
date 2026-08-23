@@ -84,7 +84,7 @@ function init() {
   const initial = mscFromLocation();
   if (initial !== null) {
     openDetail(initial);
-    history.replaceState({ msc: initial }, '', `#msc${initial}`);
+    history.replaceState({ msc: initial }, '', mscAppUrl(initial));
   } else {
     render();
   }
@@ -758,11 +758,45 @@ function render() {
   refreshIcons();
 }
 
+function mscBasePath() {
+  const path = location.pathname.replace(/\/index\.html$/i, '');
+  return path.replace(/\/?$/, '') || '';
+}
+
+function mscShareUrl(num) {
+  return `${location.origin}${mscBasePath()}/msc/${num}/`;
+}
+
+function mscAppUrl(num) {
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('msc', String(num));
+  return `${url.pathname}${url.search}`;
+}
+
 function mscFromLocation() {
-  const match = location.hash.match(/^#msc(\d+)$/i);
-  if (!match) return null;
-  const num = parseInt(match[1], 10);
-  return byNumber.has(num) ? num : null;
+  const q = new URLSearchParams(location.search).get('msc');
+  if (q && /^\d+$/.test(q)) {
+    const num = parseInt(q, 10);
+    return byNumber.has(num) ? num : null;
+  }
+
+  const hashMatch = location.hash.match(/^#msc(\d+)$/i);
+  if (hashMatch) {
+    const num = parseInt(hashMatch[1], 10);
+    return byNumber.has(num) ? num : null;
+  }
+
+  return null;
+}
+
+function updatePageMeta(msc) {
+  if (!msc) {
+    document.title = 'Matrix Spec Explorer';
+    return;
+  }
+  document.title = `MSC${msc.number}: ${msc.title}`;
 }
 
 function openDetail(num) {
@@ -771,6 +805,7 @@ function openDetail(num) {
   document.getElementById('detail').hidden = false;
   document.getElementById('detail-resizer').hidden = false;
   renderDetail(byNumber.get(num));
+  updatePageMeta(byNumber.get(num));
   render();
 }
 
@@ -780,6 +815,7 @@ function closeDetailUI() {
   document.getElementById('detail').hidden = true;
   document.getElementById('detail-resizer').hidden = true;
   document.getElementById('detail-actions').innerHTML = '';
+  updatePageMeta(null);
   render();
 }
 
@@ -860,13 +896,13 @@ function syncFromLocation() {
 function selectMsc(num) {
   if (state.selected === num) return;
   openDetail(num);
-  history.pushState({ msc: num }, '', `#msc${num}`);
+  history.pushState({ msc: num }, '', mscAppUrl(num));
 }
 
 function closeDetail() {
   if (state.selected === null) return;
   closeDetailUI();
-  history.pushState(null, '', location.pathname + location.search);
+  history.pushState(null, '', location.pathname);
 }
 
 function renderDetail(msc) {
@@ -876,6 +912,7 @@ function renderDetail(msc) {
   const docUrl = getExternalDocUrl(msc);
 
   document.getElementById('detail-actions').innerHTML = `
+    <button type="button" class="copy-btn share-btn" data-share-url="${esc(mscShareUrl(msc.number))}" aria-label="Copy share link">${icon('share-2', 'icon')}</button>
     <a href="${esc(msc.url)}" class="detail-ext-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub PR #${msc.pr}">${githubIcon('icon')}</a>
     ${docUrl ? `<a href="${esc(docUrl)}" class="detail-ext-link" target="_blank" rel="noopener noreferrer" aria-label="Proposal on GitHub">${icon('external-link', 'icon')}</a>` : ''}`;
 
@@ -1064,7 +1101,7 @@ function bindCopyButtons(root) {
     btn.dataset.copyBound = '1';
 
     btn.addEventListener('click', async () => {
-      const text = btn.dataset.copy;
+      const text = btn.dataset.shareUrl || btn.dataset.copy;
       if (!text) return;
 
       try {
@@ -1076,10 +1113,11 @@ function bindCopyButtons(root) {
       const iconName = btn.querySelector('[data-lucide]');
       if (!iconName) return;
 
+      const defaultIcon = btn.dataset.shareUrl ? 'share-2' : 'copy';
       iconName.setAttribute('data-lucide', 'check');
       refreshIcons();
       setTimeout(() => {
-        iconName.setAttribute('data-lucide', 'copy');
+        iconName.setAttribute('data-lucide', defaultIcon);
         refreshIcons();
       }, 1500);
     });

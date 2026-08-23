@@ -32,6 +32,7 @@ jobs:
       - name: Build MSC data
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SITE_URL: https://litruv.github.io/matrixSpecExplorer
         run: node build-data.js
 
       - uses: actions/upload-pages-artifact@v3

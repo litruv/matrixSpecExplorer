@@ -47,6 +47,16 @@ This overwrites:
 
 Proposal text itself is fetched from GitHub at runtime when you open an MSC.
 
+## Sharing links
+
+Discord and other chat apps ignore `#` fragments, so use the per-MSC share URL for rich embeds:
+
+```
+https://litruv.github.io/matrixSpecExplorer/msc/4522/
+```
+
+These pages are generated at build time with Open Graph metadata (title, status, author, comment count). The in-app URL uses `?msc=4522`; use the share button in the detail panel to copy the embed-friendly link.
+
 ## Deploy
 
 The site is static HTML/CSS/JS. GitHub Pages deployment is automated via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
