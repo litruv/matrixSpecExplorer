@@ -759,23 +759,32 @@ function render() {
 }
 
 function mscBasePath() {
-  const path = location.pathname.replace(/\/index\.html$/i, '');
+  let path = location.pathname.replace(/\/index\.html$/i, '');
+  path = path.replace(/\/msc\/\d+\/?$/, '');
   return path.replace(/\/?$/, '') || '';
 }
 
-function mscShareUrl(num) {
-  return `${location.origin}${mscBasePath()}/msc/${num}/`;
+function mscAppUrl(num) {
+  const base = mscBasePath();
+  return base ? `${base}/msc/${num}/` : `/msc/${num}/`;
 }
 
-function mscAppUrl(num) {
-  const url = new URL(location.href);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('msc', String(num));
-  return `${url.pathname}${url.search}`;
+function mscShareUrl(num) {
+  return `${location.origin}${mscAppUrl(num)}`;
+}
+
+function appHomeUrl() {
+  const base = mscBasePath();
+  return base ? `${base}/` : '/';
 }
 
 function mscFromLocation() {
+  const pathMatch = location.pathname.match(/\/msc\/(\d+)\/?$/i);
+  if (pathMatch) {
+    const num = parseInt(pathMatch[1], 10);
+    return byNumber.has(num) ? num : null;
+  }
+
   const q = new URLSearchParams(location.search).get('msc');
   if (q && /^\d+$/.test(q)) {
     const num = parseInt(q, 10);
@@ -902,7 +911,7 @@ function selectMsc(num) {
 function closeDetail() {
   if (state.selected === null) return;
   closeDetailUI();
-  history.pushState(null, '', location.pathname);
+  history.pushState(null, '', appHomeUrl());
 }
 
 function renderDetail(msc) {

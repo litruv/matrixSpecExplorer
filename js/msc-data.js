@@ -2,7 +2,7 @@
 // Run: node build-data.js
 
 const MSC_INDEX = {
-  "fetchedAt": "2026-08-23T06:58:39.227Z",
+  "fetchedAt": "2026-08-23T08:48:52.586Z",
   "count": 1150,
   "mscs": [
     {

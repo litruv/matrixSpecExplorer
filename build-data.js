@@ -226,9 +226,20 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function rewriteAssetPaths(html) {
+  return html
+    .replace(/href="css\//g, 'href="../../css/')
+    .replace(/src="js\//g, 'src="../../js/');
+}
+
 function generateSharePages(mscs, commentsByPr) {
   const mscRoot = new URL('./msc/', import.meta.url);
   rmSync(mscRoot, { recursive: true, force: true });
+
+  const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const bodyMatch = indexHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (!bodyMatch) throw new Error('index.html is missing a <body>');
+  const appBody = rewriteAssetPaths(bodyMatch[1]);
 
   const ogImage = `${SITE_URL}/og.svg`;
 
@@ -245,7 +256,6 @@ function generateSharePages(mscs, commentsByPr) {
     if (comments) parts.push(`${comments} comments`);
     const description = parts.join(' · ');
     const pageUrl = `${SITE_URL}/msc/${msc.number}/`;
-    const appUrl = `${SITE_URL}/?msc=${msc.number}`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -265,11 +275,11 @@ function generateSharePages(mscs, commentsByPr) {
   <meta name="twitter:description" content="${escHtml(description)}">
   <meta name="twitter:image" content="${escHtml(ogImage)}">
   <link rel="canonical" href="${escHtml(pageUrl)}">
-  <meta http-equiv="refresh" content="0;url=${escHtml(appUrl)}">
-  <script>location.replace(${JSON.stringify(appUrl)});</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark.min.css">
+  <link rel="stylesheet" href="../../css/style.css">
 </head>
 <body>
-  <p><a href="${escHtml(appUrl)}">${escHtml(title)}</a></p>
+${appBody}
 </body>
 </html>
 `;
