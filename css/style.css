@@ -1024,6 +1024,75 @@ input:focus, select:focus {
 }
 .markdown-body a { color: var(--link); }
 
+.markdown-body blockquote {
+  margin: 0.5rem 0;
+  padding: 0.25rem 0.75rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.markdown-body blockquote > :first-child { margin-top: 0; }
+.markdown-body blockquote > :last-child { margin-bottom: 0; }
+
+.markdown-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.markdown-body del { opacity: 0.75; }
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.markdown-body li { margin: 0.2rem 0; }
+
+.markdown-body li > p { margin: 0.25rem 0; }
+
+.markdown-body table {
+  width: 100%;
+  margin: 0.75rem 0;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.markdown-body th {
+  background: var(--surface2);
+  font-weight: 600;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.markdown-body details {
+  margin: 0.5rem 0;
+}
+
+.markdown-body summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
 .msc-inline-link {
   display: inline;
   background: none;

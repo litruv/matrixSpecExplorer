@@ -1380,10 +1380,15 @@ async function loadMarkdown(msc) {
   refreshIcons();
 }
 
-function renderMarkdown(src) {
-  let html = esc(String(src).replace(/\r\n/g, '\n'));
+function sanitizeMarkdownHtml(html) {
+  if (typeof DOMPurify === 'undefined') return html;
+  return DOMPurify.sanitize(html, {
+    ADD_ATTR: ['target', 'rel', 'loading', 'data-msc', 'type', 'checked', 'disabled', 'align'],
+  });
+}
 
-  html = linkifyMscReferences(html);
+function renderMarkdownFallback(mdPart) {
+  let html = esc(mdPart);
 
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -1399,6 +1404,33 @@ function renderMarkdown(src) {
   html = '<p>' + html + '</p>';
   html = html.replace(/<p><h([123])>/g, '<h$1>').replace(/<\/h([123])><\/p>/g, '</h$1>');
   html = html.replace(/<p><pre>/g, '<pre>').replace(/<\/pre><\/p>/g, '</pre>');
+
+  return html;
+}
+
+function renderMarkdown(src) {
+  const text = String(src).replace(/\r\n/g, '\n');
+  const processed = linkifyMscReferences(text);
+
+  const footnoteSep = '<hr class="footnotes-sep">';
+  const footIdx = processed.indexOf(footnoteSep);
+  const mdPart = footIdx === -1 ? processed : processed.slice(0, footIdx);
+  const footnotesPart = footIdx === -1 ? '' : processed.slice(footIdx);
+
+  let html;
+  if (typeof marked !== 'undefined') {
+    html = marked.parse(mdPart, { gfm: true, breaks: true });
+    html = sanitizeMarkdownHtml(html);
+  } else {
+    html = renderMarkdownFallback(mdPart);
+  }
+
+  html = html.replace(/<a\s+(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
+  html = html.replace(/<img\s/gi, '<img loading="lazy" ');
+
+  if (footnotesPart) {
+    html += sanitizeMarkdownHtml(footnotesPart);
+  }
 
   return html;
 }
