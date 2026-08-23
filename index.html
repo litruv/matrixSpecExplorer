@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matrix Spec Explorer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <h1><i data-lucide="layers" class="icon icon-title" aria-hidden="true"></i> Matrix Spec Explorer</h1>
+    </div>
+    <div class="header-meta" id="meta"></div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="filter-group search-group">
+        <div class="search-box">
+          <i data-lucide="search" class="icon search-icon" aria-hidden="true"></i>
+          <input type="search" id="search" placeholder="Search" autocomplete="off" spellcheck="false">
+          <div id="search-overlay" class="search-overlay" hidden>
+            <div id="search-active-filters" class="search-active-filters"></div>
+            <div id="search-options" class="search-options"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Status</span>
+        <div class="filter-list" id="status-filters"></div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Kind</span>
+        <div class="chip-grid" id="kind-filters"></div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Area</span>
+        <div class="chip-grid chip-grid-scroll" id="area-filters"></div>
+      </div>
+
+      <button type="button" class="btn-clear" id="clear-filters">
+        <i data-lucide="filter-x" class="icon" aria-hidden="true"></i>
+        Clear
+      </button>
+    </aside>
+
+    <div class="col-resizer" id="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
+
+    <main class="main">
+      <div class="results-bar">
+        <span id="result-count"></span>
+        <div class="sort-dropdown" id="sort-dropdown">
+          <button type="button" class="sort-btn" id="sort-btn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="sort-label">Newest first</span>
+            <i data-lucide="chevron-down" class="icon" aria-hidden="true"></i>
+          </button>
+          <div class="sort-menu" id="sort-menu" role="listbox" hidden></div>
+        </div>
+      </div>
+      <ul class="msc-list" id="msc-list"></ul>
+    </main>
+
+    <div class="col-resizer col-resizer-detail" id="detail-resizer" role="separator" aria-orientation="vertical" aria-label="Resize detail panel" hidden></div>
+
+    <section class="detail" id="detail" hidden>
+      <div id="detail-actions" class="detail-actions"></div>
+      <div id="detail-content"></div>
+    </section>
+  </div>
+
+  <script src="js/msc-data.js"></script>
+  <script src="js/msc-comments.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
