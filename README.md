@@ -1,17 +1,20 @@
 # Matrix Spec Explorer
 
-Browse [Matrix Spec Proposals](https://github.com/matrix-org/matrix-spec-proposals) without getting lost in GitHub. Filter proposals by status, kind, and area, search using operators, and read the proposal markdown alongside the PR discussion.
+A better way to browse [Matrix Spec Proposals](https://github.com/matrix-org/matrix-spec-proposals) without digging through GitHub all day. Filter and search MSCs, browse proposal details, and read the PR discussion in the same place.
 
 **Live site:** https://litruv.github.io/matrixSpecExplorer/
 
 ## Features
 
 * **Search** with operators: `depends:`, `depended-by:`, `status:`, `kind:`, `area:`, `author:`, `msc:`
-* **Filters** for status, kind, and area, with counts
-* **Sorting** by newest, oldest, recently updated, most discussed, or title
-* **Detail panel** with proposal markdown, dependencies, labels, and PR comments
+* **Filter** by status, kind, and area, with status counts
+* **Favourite** MSCs, saved in your browser with `localStorage`, with their own sidebar filter
+* **Sort** by newest, oldest, recently updated, most discussed, or title
+* **Read proposals** in the detail panel, including dependencies, labels, and PR comments
+* GitHub-flavoured markdown support, including images, quotes, tables, and task lists
 * **Internal MSC links** with hover previews
-* **Resizable** sidebar, list, and detail panels
+* **Shareable URLs** using `/msc/N/`, with Open Graph metadata for Discord and other chat apps
+* **Resizable** sidebar, list, and detail columns
 
 ## Run locally
 
@@ -23,82 +26,95 @@ python3 -m http.server 8080
 
 Then open http://localhost:8080.
 
-The repo includes pre-built data in `js/msc-data.js` and `js/msc-comments.js`, so it works immediately without needing a build step.
+The repo includes pre-built `js/msc-data.js` and `js/msc-comments.js`, so you can just clone it and run it.
+
+Proposal text is fetched from GitHub when you open an MSC.
 
 ## Refresh data
 
-To regenerate MSC metadata and PR comments from GitHub:
+To pull fresh MSC metadata and PR comments from GitHub:
 
 ```bash
 # Recommended, avoids API rate limits
 # 5000 req/hr vs GITHUB_TOKEN's cross-repo limits
 export MSP_GITHUB_TOKEN=ghp_...
+
 # or: gh auth login
 
-# Optional, parses dependencies from proposal markdown
+# Optional, used to parse dependencies from proposal markdown
 git clone --depth 1 https://github.com/matrix-org/matrix-spec-proposals.git /tmp/msp-clone
 
 node build-data.js
 ```
 
-To regenerate only the `/msc/N/` share pages after app changes:
+This regenerates:
+
+* `js/msc-data.js`, the MSC index, around 1 MB
+* `js/msc-comments.js`, PR discussion comments, around 3 MB
+
+It also generates the individual share pages under `msc/`. Those aren't committed and are generated during builds.
+
+If you've only changed the app and just need to rebuild the share pages:
 
 ```bash
 node build-data.js --share-pages-only
 ```
 
-### CI behaviour
-
-Pushes to `main` run `--share-pages-only` and deploy the committed `js/msc-data.js` and `js/msc-comments.js`.
-
-The daily schedule and manual "refresh data" runs perform a full API refresh. Add a repo secret called `MSP_GITHUB_TOKEN` using a fine-grained PAT with public repo read access so scheduled builds do not run into GitHub Actions' lower cross-repo rate limits.
-
-The build overwrites:
-
-* `js/msc-data.js` , MSC index, around 1 MB
-* `js/msc-comments.js` , PR discussion comments, around 3 MB
-
-Proposal text itself is fetched from GitHub at runtime when you open an MSC.
+That doesn't make any GitHub API calls.
 
 ## Sharing links
 
-Opening an MSC updates the address bar with a shareable URL:
+Opening an MSC updates the URL to something like:
 
 ```text
 https://litruv.github.io/matrixSpecExplorer/msc/4522/
 ```
 
-Each MSC also has a static HTML page with Open Graph metadata, so Discord and other chat apps can generate useful previews without running the JavaScript app.
+Discord and similar apps don't run the site's JavaScript when generating embeds. Each MSC therefore gets its own static HTML page with Open Graph metadata for the title, status, author, and comment count.
 
-The pages include the proposal title, status, author, and comment count.
+Copy the URL from the address bar or use the share button in the detail panel.
 
-You can copy the URL directly from the address bar or use the share button in the detail panel.
-
-Legacy `?msc=4522` and `#msc4522` links still work in the app, but they will not generate rich embeds in chat apps.
+Old `?msc=4522` and `#msc4522` links still open the correct MSC, but they won't produce rich embeds.
 
 ## Deploy
 
-The site is completely static and uses GitHub Pages. Deployment is automated through [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+It's a static HTML, CSS, and JS site. GitHub Pages deployment is handled by [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 
-* Runs on pushes to `main`
-* Rebuilds data from the GitHub API
-* Deploys to GitHub Pages
-* Runs daily at 06:00 UTC
+| Trigger                  | What happens                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------- |
+| Push to `main`           | Runs `build-data.js --share-pages-only`, with no GitHub API calls                                 |
+| Daily at 06:00 UTC       | Runs a full `build-data.js` refresh and falls back to the committed data if GitHub rate-limits it |
+| Manual workflow dispatch | Rebuilds share pages by default. Enable **Fetch fresh MSC data** to do a full refresh             |
 
 To deploy your own fork, enable **GitHub Pages** with **GitHub Actions** as the source, then push to `main`.
 
-No secrets are stored in the repo. The workflow uses GitHub's built-in `GITHUB_TOKEN`.
+For reliable scheduled refreshes, add an `MSP_GITHUB_TOKEN` repo secret using a fine-grained PAT with public repo read access. Nothing else needs a secret.
 
 ## Project layout
 
 ```text
 index.html          App shell
+og.svg              Default Open Graph image
+
 css/style.css       Styles
+
 js/app.js           UI and filtering logic
 js/msc-data.js      Generated MSC index (do not edit)
 js/msc-comments.js  Generated PR comments (do not edit)
-build-data.js       Fetches data from GitHub API
+
+build-data.js       Fetches GitHub data and writes share pages
+
+msc/                Generated per-MSC pages for link previews (gitignored)
+
+.github/workflows/  Pages deployment
 ```
+
+Runtime dependencies are loaded from CDNs:
+
+* [marked](https://marked.js.org/)
+* [DOMPurify](https://github.com/cure53/DOMPurify)
+* [highlight.js](https://highlightjs.org/)
+* [Lucide](https://lucide.dev/)
 
 ## License
 
@@ -106,4 +122,4 @@ build-data.js       Fetches data from GitHub API
 
 **Bundled data:** MSC metadata and PR comments in `js/msc-data.js` and `js/msc-comments.js` are aggregated from the public [matrix-spec-proposals](https://github.com/matrix-org/matrix-spec-proposals) repository on GitHub.
 
-MSC proposals are licensed under Apache 2.0. PR comment text remains © its respective authors. See [NOTICE](NOTICE) for attribution details.
+MSC proposals are licensed under [Apache 2.0](https://github.com/matrix-org/matrix-spec-proposals/blob/main/LICENSE). PR comment text remains © its respective authors. See [NOTICE](NOTICE) for attribution details.
