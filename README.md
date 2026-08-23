@@ -73,4 +73,6 @@ build-data.js       Fetches data from GitHub API
 
 ## License
 
-Data is sourced from public Matrix and GitHub repositories. Application code is provided as-is.
+MIT — see [LICENSE](LICENSE).
+
+MSC metadata and PR comments in `js/msc-data.js` and `js/msc-comments.js` are aggregated from public [matrix-spec-proposals](https://github.com/matrix-org/matrix-spec-proposals) sources on GitHub.
