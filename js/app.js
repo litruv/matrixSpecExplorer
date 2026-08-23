@@ -1380,6 +1380,50 @@ async function loadMarkdown(msc) {
   refreshIcons();
 }
 
+function normalizeGitHubImageUrls(text) {
+  return text
+    .replace(
+      /https:\/\/private-user-images\.githubusercontent\.com\/\d+\/\d+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.png[^"\s)>]*/gi,
+      'https://github.com/user-attachments/assets/$1',
+    )
+    .replace(
+      /https:\/\/user-images\.githubusercontent\.com\/\d+\/[0-9a-f]+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.png[^"\s)>]*/gi,
+      'https://github.com/user-attachments/assets/$1',
+    );
+}
+
+const VOID_HTML_TAGS = new Set(['img', 'br', 'hr', 'input', 'source', 'meta']);
+const PRE_MARKDOWN_HTML_TAGS = ['img', 'video', 'source', 'del', 'ins', 'details', 'summary'];
+const POST_LINKIFY_HTML_TAGS = ['sup', 'button', 'a'];
+
+function stashHtmlBlock(match, blocks) {
+  const key = `@@HTMLBLOCK${blocks.length}@@`;
+  blocks.push(match);
+  return key;
+}
+
+function protectHtmlTags(text, blocks, tagNames) {
+  for (const tag of tagNames) {
+    if (VOID_HTML_TAGS.has(tag)) {
+      const re = new RegExp(`<${tag}\\b[^>]*?\\/?>`, 'gi');
+      text = text.replace(re, (match) => stashHtmlBlock(match, blocks));
+      continue;
+    }
+
+    const re = new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi');
+    text = text.replace(re, (match) => stashHtmlBlock(match, blocks));
+  }
+
+  return text;
+}
+
+function restoreHtmlBlocks(html, blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    html = html.split(`@@HTMLBLOCK${i}@@`).join(blocks[i]);
+  }
+  return html;
+}
+
 function sanitizeMarkdownHtml(html) {
   if (typeof DOMPurify === 'undefined') return html;
   return DOMPurify.sanitize(html, {
@@ -1409,20 +1453,26 @@ function renderMarkdownFallback(mdPart) {
 }
 
 function renderMarkdown(src) {
-  const text = String(src).replace(/\r\n/g, '\n');
+  const htmlBlocks = [];
+  let text = normalizeGitHubImageUrls(String(src).replace(/\r\n/g, '\n'));
+  text = protectHtmlTags(text, htmlBlocks, PRE_MARKDOWN_HTML_TAGS);
+
   const processed = linkifyMscReferences(text);
 
   const footnoteSep = '<hr class="footnotes-sep">';
   const footIdx = processed.indexOf(footnoteSep);
-  const mdPart = footIdx === -1 ? processed : processed.slice(0, footIdx);
+  let mdPart = footIdx === -1 ? processed : processed.slice(0, footIdx);
   const footnotesPart = footIdx === -1 ? '' : processed.slice(footIdx);
+
+  mdPart = protectHtmlTags(mdPart, htmlBlocks, POST_LINKIFY_HTML_TAGS);
 
   let html;
   if (typeof marked !== 'undefined') {
     html = marked.parse(mdPart, { gfm: true, breaks: true });
+    html = restoreHtmlBlocks(html, htmlBlocks);
     html = sanitizeMarkdownHtml(html);
   } else {
-    html = renderMarkdownFallback(mdPart);
+    html = restoreHtmlBlocks(renderMarkdownFallback(mdPart), htmlBlocks);
   }
 
   html = html.replace(/<a\s+(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
